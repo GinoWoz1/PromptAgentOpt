@@ -1,10 +1,9 @@
 import os
 from typing import Any
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv("./.env", override=True)
-
+load_dotenv(find_dotenv())
 
 class MissingEnvError(Exception):
     """Exception raised when trying to grab environment variables that aren't set
