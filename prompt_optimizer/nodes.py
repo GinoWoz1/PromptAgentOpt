@@ -287,34 +287,78 @@ def generate_prompts(state: OptimizationState) -> Dict[str, Any]:
     }
 
 def execute_prompt_node(task: ExecutionTask) -> Dict[str, List[ExecutionResult]]:
-    """Executes the prompt template on a specific input example."""
+    """
+    Executes the prompt template on a specific input example dynamically.
+    Supports complex formatting (attribute/index access) for future adaptability.
+    """
     candidate = task['candidate']
     input_example = task['input_example']
     ACTOR_MODEL = task['actor_model']
 
-    logger.debug(f"Executing prompt {candidate['candidate_id']} on input {input_example['id']} with {ACTOR_MODEL}")
+    # Safely access input data for interpolation and context passing
+    # Use .get() for defensive coding in case keys are missing from the input_example structure
+    input_data = input_example.get('data', {})
+    input_example_id = input_example.get('id', 'N/A')
 
-    # Format the prompt template with the input data
+    logger.debug(f"Executing prompt {candidate['candidate_id']} on input {input_example_id} with {ACTOR_MODEL}")
+
+    # -----------------------------------------------------------------------
+    # DYNAMIC INTERPOLATION AND EXECUTION
+    # -----------------------------------------------------------------------
+    
+    # We use a try...except...else block to clearly separate formatting errors from execution.
     try:
-        prompt_to_execute = candidate['prompt_text'].format(**input_example['data'])
+        # Use Python's built-in formatting with dictionary unpacking for maximum dynamism.
+        # This handles simple placeholders, attribute access, and index access automatically.
+        prompt_to_execute = candidate['prompt_text'].format(**input_data)
+
     except KeyError as e:
-        logger.error(f"Prompt format error: Missing key {e} in input data for prompt {candidate['candidate_id']}")
-        output = f"LLM_CALL_ERROR: Template rendering failed. Missing placeholder {e}."
+        # Handles missing dictionary keys (e.g., the prompt requires {A} but input_data lacks 'A')
+        error_msg = f"Template rendering failed. Missing required key/placeholder: {e}."
+        logger.error(f"Prompt format error for {candidate['candidate_id']}: {error_msg}")
+        output = f"LLM_CALL_ERROR: {error_msg}"
+        
+    except (IndexError, AttributeError) as e:
+        # Handles invalid access on existing objects (e.g., {my_list[99]} or {my_obj.missing_attr})
+        error_msg = f"Template rendering failed. Invalid attribute or index access: {e}."
+        logger.error(f"Prompt format error for {candidate['candidate_id']}: {error_msg}")
+        output = f"LLM_CALL_ERROR: {error_msg}"
+
+    except TypeError as e:
+        # Handles type mismatches during formatting (e.g., trying to format a string as a float {value:.2f})
+        error_msg = f"Template rendering failed. Type error during formatting: {e}."
+        logger.error(f"Prompt format error for {candidate['candidate_id']}: {error_msg}")
+        output = f"LLM_CALL_ERROR: {error_msg}"
+
     except Exception as e:
-        logger.error(f"Unexpected template rendering error: {e}")
-        output = f"LLM_CALL_ERROR: Template rendering failed. {e}."
+        # Catch-all for unexpected errors during formatting
+        error_msg = f"Unexpected error during template rendering: {e}."
+        logger.error(f"Unexpected error for {candidate['candidate_id']}: {error_msg}")
+        output = f"LLM_CALL_ERROR: {error_msg}"
+        
     else:
-         # Execute the task if rendering succeeded
+        # If formatting succeeds, execute the LLM call.
+        # The call_llm helper function handles its own internal errors and returns a string.
         output = call_llm(ACTOR_MODEL, prompt_to_execute)
 
-    # Check if execution failed
-    if output.startswith("LLM_CALL_ERROR"):
-         logger.warning(f"Execution failed for candidate {candidate['candidate_id']}: {output}")
+    # -----------------------------------------------------------------------
+    # RESULT PACKAGING
+    # -----------------------------------------------------------------------
 
+    # Check if execution failed (either during rendering or LLM call)
+    if output.startswith("LLM_CALL_ERROR"):
+         logger.warning(f"Execution summary: Failed for candidate {candidate['candidate_id']}. Error: {output[:200]}...")
+
+    # Construct the result
     result = ExecutionResult(
         execution_id=str(uuid.uuid4())[:8],
         candidate_id=candidate['candidate_id'],
-        input_example_id=input_example['id'],
+        input_example_id=input_example_id,
+        
+        # The router_to_voting function relies on this field (input_example_data) 
+        # to pass context to the voters.
+        input_example_data=input_data,
+        
         output=output
     )
     
