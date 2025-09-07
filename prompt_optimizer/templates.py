@@ -1,58 +1,67 @@
-# prompt_optimizer/templates.py
-
-from typing import List, Dict, Any 
+from typing import List, Dict, Any
 import json
 
 # -----------------------------------------------------------------------
 # Optimizer LLM Template (The Generator)
 # -----------------------------------------------------------------------
 
-# Updated instructions for JSON object format and placeholders
+# Updated instructions (Q1)
 OPTIMIZER_SYSTEM_PROMPT = """
 You are an expert prompt optimization agent. Your goal is to iteratively refine prompts based on performance evaluations and critiques.
 
 CRITICAL INSTRUCTIONS:
-1. Exploration and Exploitation: Balance refining known good strategies with exploring novel approaches.
-2. Inter-Iteration Novelty: You MUST NOT generate prompts semantically identical to those in the <history> section.
-3. Intra-Batch Diversity: Prompts generated in this batch MUST be diverse from each other.
-4. Input Placeholders: Prompts must be designed as templates to accept input data via f-string style placeholders (e.g., "Analyze this text: {input_text}"). Ensure you use appropriate placeholders based on the task description and input data structure.
+1. Exploration and Exploitation: Analyze the <performance_history> and <critiques_to_address>. Balance refining high-performing strategies (exploitation) with exploring novel approaches (exploration).
+2. Iterative Improvement: Focus on generating prompts that are likely to score higher than the current best performer.
+3. Input Placeholders (CRITICAL): Prompts must be designed as templates. You MUST use Dollar-style placeholders (e.g., "Analyze this text: $input_text"). DO NOT use f-string style (e.g., {input_text}).
+4. Diversity: Prompts generated in this batch should be diverse from each other, unless you are focusing on minor variations of a highly successful strategy.
 5. Output Format: You MUST respond ONLY with a JSON object containing a key "prompts", which is a list of strings.
 """
 
-def format_optimizer_prompt(task_desc: str, synthesized_critiques: str, history_prompts: List[str], num_candidates: int, iteration: int) -> str:
+# Updated signature (Q1)
+def format_optimizer_prompt(task_desc: str, synthesized_critiques: str, performance_history: List[Dict[str, Any]], num_candidates: int, iteration: int) -> str:
     """Formats the prompt for the Optimizer LLM."""
+    
+    # Context Management: Focus on the top performers (Q1)
+    MAX_HISTORY_IN_PROMPT = 10
+    # History is expected to be sorted by score descending
+    top_performers = performance_history[:MAX_HISTORY_IN_PROMPT]
 
-    # Context Management
-    MAX_HISTORY_IN_PROMPT = 15
-    truncated_history = history_prompts[-MAX_HISTORY_IN_PROMPT:]
-    history_section = "\n".join([f"- {p}" for p in truncated_history])
-    if len(history_prompts) > MAX_HISTORY_IN_PROMPT:
-        history_section = f"... (and {len(history_prompts) - MAX_HISTORY_IN_PROMPT} earlier prompts truncated)\n" + history_section
+    history_section = ""
+    if top_performers:
+        for item in top_performers:
+            # Using aggregate_score (normalized Z-score) for relative comparison
+            score = item.get('aggregate_score', 0.0)
+            prompt_text = item.get('prompt_text', '[Missing]')
+            history_section += f"Score: {score:.4f}\nPrompt: {prompt_text}\n---\n"
+    else:
+        history_section = "No history yet."
 
+    # Format the prompt with $ placeholders
     prompt = f"""
 <target_task>
 {task_desc}
 </target_task>
 
-<critiques_to_address>
-Analyze these insights from the previous iteration. Generate prompts that specifically address these failure modes.
-{synthesized_critiques if synthesized_critiques else "No critiques available (First iteration). Focus on diversity and ensure correct input placeholders (e.g., {placeholder_name}) are used."}
-</critiques_to_address>
+<performance_history>
+Review the scores and structures of the top-performing prompts found so far. Aim to beat these scores.
+{history_section}
+</performance_history>
 
-<history>
-IMPORTANT: Avoid generating prompts similar to these previous attempts.
-{history_section if history_section else "No history yet."}
-</history>
+<critiques_to_address>
+Analyze these insights from the previous iteration. Use them to modify the strategies seen in the <performance_history> or create new ones that address these failure modes.
+{synthesized_critiques if synthesized_critiques else "No critiques available (First iteration). Focus on generating diverse initial strategies and ensure correct input placeholders (e.g., $placeholder_name) are used."}
+</critiques_to_address>
 
 <instructions>
 Generate {num_candidates} new prompt candidates for Iteration {iteration}.
-Ensure diversity and novelty as per the system instructions. Remember to include necessary input placeholders.
+Ensure diversity and novelty as per the system instructions. Remember to include necessary input placeholders using the required Dollar-style syntax ($).
 
 Respond ONLY with a JSON object in the following format:
 {{"prompts": ["Prompt template 1...", "Prompt template 2..."]}}
 </instructions>
 """
     return prompt
+
 
 # -----------------------------------------------------------------------
 # Critique Synthesizer Template

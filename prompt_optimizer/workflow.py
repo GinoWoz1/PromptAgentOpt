@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 # Import the State definition
-from .models import OptimizationState, ExecutionTask, VotingTask
+from .models import OptimizationState, ExecutionTask, VotingTask, PerformanceExample
 
 # Import the nodes
 from .nodes import (
