@@ -30,43 +30,39 @@ The system operates in a loop using distinct roles for LLMs:
 
 ## Installation
 
-1.  **Clone the repository**:
+1.  **Install dependencies using uv**:
 
     ```bash
-    git clone <your-repository-url>
-    cd <repository-directory>
+    uv sync
     ```
 
-2.  **Create a virtual environment** (Recommended):
+    This will automatically create a virtual environment and install all required dependencies.
+
+2.  **Activate the virtual environment**:
 
     ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
     ```
 
-3.  **Install the required Python packages**:
+    Alternatively, you can run commands directly with uv without activating:
 
     ```bash
-    pip install pandas numpy scikit-learn python-dotenv langgraph sentence-transformers
+    uv run python run_optimization.py --config config.json --dataset data.json
+    ```
+3.  **(Optional) Install additional LLM providers** if needed:
+
+    ```bash
+    uv add openai anthropic google-generativeai
     ```
 
-4.  **Install LLM Providers** (Install the ones you plan to use):
+4.  **(Optional) Install packages for specific features**:
 
     ```bash
-    pip install openai anthropic google-generativeai
-    ```
-
-5.  **(Optional) Install packages for specific features**:
-
-    ```bash
-    # For robust JSON parsing (Highly Recommended)
-    pip install dirtyjson
-
     # For Langfuse observability
-    pip install langfuse
+    uv add langfuse
 
     # If you plan to use HuggingFace models locally (using the hf/ prefix)
-    pip install torch transformers accelerate bitsandbytes
+    uv add torch transformers accelerate bitsandbytes
     ```
 
 ## Configuration
