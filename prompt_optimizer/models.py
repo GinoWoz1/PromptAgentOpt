@@ -1,8 +1,16 @@
 # prompt_optimizer/models.py
 
+"""
+Data models and type definitions for the prompt optimization system.
+
+This module defines the core data structures used throughout the prompt optimization
+workflow, including candidate prompts, execution results, voting mechanisms, and
+state management. These models provide type safety and clear interfaces for the
+optimization process.
+"""
+
 import operator
-from typing import Annotated
-from typing import List, Dict, Any, TypedDict, Optional
+from typing import Annotated, List, Dict, Any, TypedDict, Optional, Union
 import uuid
 
 # -----------------------------------------------------------------------
@@ -10,6 +18,7 @@ import uuid
 # -----------------------------------------------------------------------
 
 class InputExample(TypedDict):
+  """Represents a single input example from the dataset."""
   id: str
   data: Dict[str, Any]
 
@@ -19,11 +28,10 @@ class PromptCandidate(TypedDict):
   prompt_text: str  # Template
   iteration: int
   embedding: List[float]
-  # NEW (Q1): Flag to identify if this candidate was carried over as an elite
-  is_elite: bool
+  is_elite: bool  # Flag to identify if this candidate was carried over as an elite
 
 class ExecutionResult(TypedDict):
-  """The result of running a candidate prompt against a SINGLE input example."""
+  """The result of running a candidate prompt against a single input example."""
   execution_id: str
   candidate_id: str
   input_example_id: str
@@ -32,7 +40,7 @@ class ExecutionResult(TypedDict):
   output: str
 
 class Vote(TypedDict):
-  """A single evaluation by a voter LLM on a SINGLE execution result."""
+  """A single evaluation by a voter LLM on a single execution result."""
   vote_id: str
   voter_id: str
   candidate_id: str
@@ -41,10 +49,10 @@ class Vote(TypedDict):
   critique: str
   execution_result_id: str
 
-# (PerformanceExample and IterationResult remain the same structure)
 class PerformanceExample(TypedDict):
   """
   Captures the details of a specific execution based on voter consensus.
+  Used for tracking the best and worst performing examples across iterations.
   """
   candidate_id: str
   prompt_template: str
@@ -56,6 +64,7 @@ class PerformanceExample(TypedDict):
   critiques: List[str]
 
 class IterationResult(TypedDict):
+  """Aggregated results for a candidate prompt across an entire iteration."""
   candidate_id: str
   prompt_text: str  # The template
   iteration: int
@@ -63,12 +72,13 @@ class IterationResult(TypedDict):
   raw_average_score: float
 
 # -----------------------------------------------------------------------
-# NEW (Q2): Detailed Traceability
+# Detailed Traceability
 # -----------------------------------------------------------------------
 
 class ExecutionTrace(TypedDict):
   """
   Combines the execution result with the aggregated voting results for full traceability.
+  Provides complete visibility into the performance of each prompt-input combination.
   """
   iteration: int
   candidate_id: str
@@ -81,15 +91,48 @@ class ExecutionTrace(TypedDict):
   votes: List[Vote]  # All individual votes for this execution
 
 # -----------------------------------------------------------------------
+# Prompt Generation Traceability
+# -----------------------------------------------------------------------
+
+class PromptGenerationTrace(TypedDict):
+  """
+  Tracks the details of the prompt generation process within a single iteration/attempt.
+  This structure is designed to be saved as a JSONL record for debugging and analysis
+  of the prompt generation process.
+  """
+  iteration: int
+  attempt: Union[int, str]  # Can be an integer (1, 2, 3) or a string ("FALLBACK")
+  timestamp: str
+  optimizer_model: str
+  # Inputs to the generation process
+  input_synthesized_critiques: str
+  # Summary of scores/IDs used as input (Top N)
+  input_performance_history_summary: List[Dict[str, Any]]
+  # Parameters
+  num_requested: int
+  # Results
+  num_generated: int
+  num_accepted: int  # Total accepted in this attempt (includes elites if first attempt)
+  num_rejected_similarity: int
+  # Details about why prompts were rejected (text, similarity score, reason)
+  rejected_prompts: List[Dict[str, Any]]
+  # Details about accepted prompts (ID, text, is_elite, similarity score)
+  accepted_prompts: List[Dict[str, Any]]
+  llm_call_successful: bool
+  error_message: Optional[str]
+
+# -----------------------------------------------------------------------
 # Task Definitions (Inputs for parallel nodes)
 # -----------------------------------------------------------------------
 
 class ExecutionTask(TypedDict):
+  """Defines a task for executing a prompt candidate against an input example."""
   candidate: PromptCandidate
   input_example: InputExample
   actor_model: str
 
 class VotingTask(TypedDict):
+  """Defines a task for a voter to evaluate an execution result."""
   execution_result: ExecutionResult
   voter_id: str
   target_task_description: str
@@ -101,7 +144,13 @@ class VotingTask(TypedDict):
 # -----------------------------------------------------------------------
 
 class OptimizationState(TypedDict):
-  """The main state for tracking the optimization workflow"""
+  """
+  The main state for tracking the optimization workflow.
+  
+  This comprehensive state object maintains all configuration, current iteration data,
+  and historical information needed for the prompt optimization process. It serves as
+  the single source of truth passed between workflow nodes.
+  """
 
   # Configuration and Input Data
   max_iterations: int
@@ -110,7 +159,7 @@ class OptimizationState(TypedDict):
   MINI_BATCH_SIZE: int
   input_dataset: List[InputExample]
 
-  # NEW: Early Stopping Configuration
+  # Early Stopping Configuration
   es_min_iterations: int
   es_patience: int
   es_threshold_percentage: float
@@ -125,21 +174,23 @@ class OptimizationState(TypedDict):
   current_candidates: Dict[str, PromptCandidate]
   current_mini_batch: List[InputExample]
 
-  # Accumulators
+  # Accumulators for current iteration
   current_execution_results: Annotated[List[ExecutionResult], operator.add]
   current_votes: Annotated[List[Vote], operator.add]
 
-  # History
+  # History and State Tracking
   all_tested_prompts: Dict[str, PromptCandidate]
   history: List[IterationResult]
   synthesized_critiques: str
   best_result: Optional[IterationResult]
-
   iteration_best_score_history: List[float]
 
-  # Global Tracking for Traceability
+  # Global Performance Tracking
   global_best_example: Optional[PerformanceExample]
   global_worst_example: Optional[PerformanceExample]
 
-  # NEW (Q2): Accumulator for detailed execution traces across all iterations
+  # Detailed execution traces across all iterations for analysis
   execution_trace_history: Annotated[List[ExecutionTrace], operator.add]
+
+  # Configuration for prompt tracing (file path provided by runner)
+  prompt_trace_file_path: Optional[str]

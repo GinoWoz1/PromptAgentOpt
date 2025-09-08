@@ -3,7 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional, Callable
-import threading # NEW: Import threading for thread-safe model loading
+import threading 
 
 # import client libraries
 try:
@@ -24,7 +24,6 @@ except ImportError:
   genai = None
   genai_types = None
 
-# NEW: Import Hugging Face libraries
 try:
     import torch
     from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -108,7 +107,6 @@ class LLMClientManager:
     if not client:
       if provider == "ollama":
         raise ValueError("Ollama client requested but not initialized. Check connectivity to the Ollama host.")
-            # NEW: Add specific error for Hugging Face
       if provider == "huggingface":
         raise ValueError("Hugging Face manager requested but not initialized. Check dependencies (torch, transformers).")
       raise ValueError(f"Client for provider {provider} not initialized or supported.")
@@ -118,7 +116,6 @@ class LLMClientManager:
     """
     A unified interface to call different LLM models.
     """
-    # NEW: Routing logic for Hugging Face. We use the explicit prefix "hf/".
     if model_name.startswith("hf/"):
         if self.hf_manager is None:
                 raise ValueError("Hugging Face models requested but the manager is not initialized.")
