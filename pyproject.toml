@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.66.0",
-    "bitsandbytes>=0.47.0",
     "dirtyjson>=1.0.8",
     "dotenv>=0.9.9",
     "dynaconf>=3.2.11",
