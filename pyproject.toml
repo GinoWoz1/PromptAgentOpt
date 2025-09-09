@@ -8,7 +8,6 @@ dependencies = [
     "anthropic>=0.66.0",
     "dirtyjson>=1.0.8",
     "dotenv>=0.9.9",
-    "dynaconf>=3.2.11",
     "files-to-prompt>=0.6",
     "google-generativeai>=0.8.5",
     "langchain>=0.3.27",
