@@ -2,18 +2,17 @@
 
 import logging
 from typing import List
+import numpy as np
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
-# Import the State definition
-from .models import OptimizationState, ExecutionTask, VotingTask, PerformanceExample
+# Import the State definition (Updated for simplified workflow)
+from .models import OptimizationState, EvaluationTask
 
-# Import the nodes
+# Import the nodes (Updated for simplified workflow)
 from .nodes import (
     generate_prompts,
-    execute_prompt_node,
-    synchronize_executions,  # Ensure this is imported
-    vote_on_result_node,
+    evaluate_prompt_node, # New combined node
     aggregate_and_score
 )
 
@@ -23,137 +22,152 @@ logger = logging.getLogger(__name__)
 # Routers (Map/Reduce and Loop Control)
 # -----------------------------------------------------------------------
 
-def router_to_execution(state: OptimizationState) -> List[Send]:
+def router_to_evaluation(state: OptimizationState) -> List[Send]:
     """
-    Dispatcher for Map 1: Execute all candidates across the mini-batch.
-    Parallelism: N_CANDIDATES * MINI_BATCH_SIZE
+    MAP Dispatcher: Execute and Evaluate all candidates across the mini-batch in parallel.
+    Parallelism Degree: N_CANDIDATES * MINI_BATCH_SIZE
     """
     actor_model = state["actor_model"]
+    voter_ensemble = state["voter_ensemble"]
+    task_description = state["target_task_description"]
     # The mini-batch was selected during the generate_prompts node
     mini_batch = state["current_mini_batch"]
+    candidates = state["current_candidates"].values()
     sends = []
 
     if not mini_batch:
-        # If the batch is empty, we skip execution.
-        logger.warning("Mini-batch is empty. Skipping execution dispatch.")
+        logger.warning("Mini-batch is empty. Skipping evaluation dispatch.")
+        return []
+
+    if not candidates:
+        logger.warning("No candidates generated. Skipping evaluation dispatch.")
         return []
 
     # N * K dispatch
-    for candidate in state["current_candidates"].values():
+    for candidate in candidates:
         for input_example in mini_batch:
+            # Create the combined task
+            task = EvaluationTask(
+                candidate=candidate,
+                input_example=input_example,
+                actor_model=actor_model,
+                voter_ensemble=voter_ensemble,
+                target_task_description=task_description
+            )
             sends.append(
                 Send(
-                    "execute_prompt",
-                    ExecutionTask(
-                        candidate=candidate,
-                        input_example=input_example,
-                        actor_model=actor_model
-                    )
+                    "evaluate_prompt", # Target the combined node
+                    task
                 )
             )
-    logger.info(f"Dispatching {len(sends)} execution tasks.")
+    logger.info(f"Dispatching {len(sends)} evaluation tasks (Map).")
     return sends
 
-def router_to_voting(state: OptimizationState) -> List[Send]:
-    """
-    Dispatcher for Map 2: Evaluate execution results only for current candidates.
-    """
-    sends = []
-    task_description = state["target_task_description"]
-    all_prompts = state["all_tested_prompts"]
-
-    # Filter to current iteration candidate IDs
-    valid_candidate_ids = set(state["current_candidates"].keys())
-
-    filtered_results = []
-    seen_pairs = set()
-    for result in state["current_execution_results"]:
-        cid = result.get("candidate_id")
-        iid = result.get("input_example_id")
-        if cid in valid_candidate_ids:
-            pair = (cid, iid)
-            if pair not in seen_pairs:
-                filtered_results.append(result)
-                seen_pairs.add(pair)
-
-    if len(filtered_results) != len(state["current_execution_results"]):
-        logger.info(
-            f"Voting filter kept {len(filtered_results)}/{len(state['current_execution_results'])} "
-            f"based on current_candidates."
-        )
-
-    for result in filtered_results:
-        prompt_text = all_prompts.get(result["candidate_id"], {}).get("prompt_text", "[Missing]")
-        # Do not rely on current_mini_batch; pass empty or result-provided context
-        input_data = result.get("input_example_data", {})
-
-        for voter_id in state["voter_ensemble"]:
-            task_data = VotingTask(
-                execution_result=result,
-                voter_id=voter_id,
-                target_task_description=task_description,
-                prompt_text=prompt_text,
-                input_example_data=input_data
-            )
-            sends.append(Send("vote_on_result", task_data))
-
-    logger.info(f"Dispatching {len(sends)} voting tasks.")
-    return sends
 
 def iteration_router(state: OptimizationState) -> str:
-    """Step 6: Loop control."""
-    if state["current_iteration"] >= state["max_iterations"]:
-        logger.info(f"Reached max iterations ({state['max_iterations']}). Finishing.")
+    """
+    LOOP CONTROL: Determines whether to continue iterating or finish, implementing Early Stopping.
+    """
+    current_iteration = state["current_iteration"]
+    max_iterations = state["max_iterations"]
+
+    # 1. Check Max Iterations
+    if current_iteration >= max_iterations:
+        logger.info(f"Reached max iterations ({max_iterations}). Finishing.")
         return "finish"
 
+    # 2. Early Stopping Logic
+    # Check if performance improvement has stalled based on configuration.
+    min_iterations = state.get("es_min_iterations", 0)
+    patience = state.get("es_patience", 0)
+    threshold_percentage = state.get("es_threshold_percentage", 0.0)
+    # We use the history of the *best score achieved in each iteration*
+    score_history = state.get("iteration_best_score_history", [])
+
+    # Ensure we have enough data and ES is enabled (patience > 0)
+    # We need at least 'patience' iterations after a baseline to check for improvement.
+    if current_iteration >= min_iterations and patience > 0 and len(score_history) > patience:
+
+        # Sanitize history: replace NaN/Inf with very low numbers for comparison
+        sanitized_history = [s if np.isfinite(s) else -np.inf for s in score_history]
+
+        # Determine the baseline score: The best score achieved *before* the patience window started.
+        # The patience window includes the last 'patience' iterations.
+        history_before_window = sanitized_history[:-patience]
+
+        # Calculate the baseline (historical max)
+        if history_before_window:
+            baseline_score = max(history_before_window)
+        else:
+            # Should not happen if len(score_history) > patience, but defensive check.
+            baseline_score = -np.inf
+
+        # Determine the best score achieved *within* the patience window
+        window_scores = sanitized_history[-patience:]
+        best_in_window = max(window_scores) if window_scores else -np.inf
+
+        # Calculate improvement
+        improvement = best_in_window - baseline_score
+
+        # Calculate percentage improvement relative to the baseline
+        if abs(baseline_score) > 1e-9 and np.isfinite(baseline_score): # Avoid division by zero or inf
+            percentage_improvement = (improvement / abs(baseline_score)) * 100
+        else:
+            # Handle division by zero or infinite baseline
+            # If baseline is near 0 or -inf, improvement is significant if best_in_window is positive and there was improvement
+            percentage_improvement = float('inf') if best_in_window > 0 and improvement > 0 else 0.0
+
+        logger.info(f"Early Stopping Check (Iter {current_iteration}): Patience={patience}, Threshold={threshold_percentage:.2f}%.")
+        logger.info(f"  Baseline (Historical Max)={baseline_score:.4f}, Best in Window={best_in_window:.4f}. Improvement={percentage_improvement:.2f}%.")
+
+        if percentage_improvement < threshold_percentage:
+            logger.info(f"Improvement ({percentage_improvement:.2f}%) is below threshold ({threshold_percentage:.2f}%) "
+                        f"for {patience} iterations. Stopping early.")
+            return "finish"
+
+    # 3. Continue Iterating
     if state.get('best_result'):
+        # Log the global best score found so far
         score = state['best_result']['aggregate_score']
-        logger.info(f"Iteration {state['current_iteration']} complete. Best score so far: {score:.4f}")
+        logger.info(f"Iteration {current_iteration} complete. Best global score so far: {score:.4f}. Continuing.")
+    else:
+         logger.info(f"Iteration {current_iteration} complete. No best result yet. Continuing.")
+
     return "iterate"
 
 # -----------------------------------------------------------------------
 # Graph Construction
 # -----------------------------------------------------------------------
 
-def compile_optimizer_graph():
-    """Compiles the optimization workflow into a LangGraph executable."""
+def build_optimizer_graph() -> StateGraph:
+    """
+    Defines the structure of the optimization workflow.
+    The architecture uses a simple Generate -> Map(Evaluate) -> Reduce(Aggregate) pattern.
+    Returns the uncompiled StateGraph.
+    """
     graph = StateGraph(OptimizationState)
 
     # Add Nodes
     graph.add_node("generate_prompts", generate_prompts)
-    graph.add_node("execute_prompt", execute_prompt_node)
-    # Ensure the synchronization node is added
-    graph.add_node("synchronize_executions", synchronize_executions)
-    graph.add_node("vote_on_result", vote_on_result_node)
+    graph.add_node("evaluate_prompt", evaluate_prompt_node) # Combined Execution + Voting
     graph.add_node("aggregate_and_score", aggregate_and_score)
 
     # Define Edges
     graph.add_edge(START, "generate_prompts")
 
-    # Map 1: Generation -> Execution (Across Mini-Batch)
-    graph.add_conditional_edges("generate_prompts", router_to_execution)
+    # Map: Generation -> Parallel Evaluation
+    graph.add_conditional_edges("generate_prompts", router_to_evaluation)
 
-    # --- Synchronization Wiring ---
+    # Reduce: Evaluation -> Aggregation
+    # LangGraph implicitly synchronizes and aggregates 'current_votes' before this step.
+    graph.add_edge("evaluate_prompt", "aggregate_and_score")
 
-    # Reduce 1: Execution -> Synchronization
-    # All parallel executions must converge here.
-    graph.add_edge("execute_prompt", "synchronize_executions")
-
-    # Map 2: Synchronization -> Voting
-    # Dispatch the next parallel step from the synchronized state.
-    graph.add_conditional_edges("synchronize_executions", router_to_voting)
-
-    # ------------------------------
-
-    # Reduce 2: Voting -> Aggregation
-    graph.add_edge("vote_on_result", "aggregate_and_score")
-
-    # The Loop
+    # The Loop: Aggregation -> Iteration Control (with Early Stopping)
     graph.add_conditional_edges(
         "aggregate_and_score",
         iteration_router,
         {"iterate": "generate_prompts", "finish": END}
     )
 
-    app = graph.compile()
-    return app
+    # Return the uncompiled graph definition
+    return graph

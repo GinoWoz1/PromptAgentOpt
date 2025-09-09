@@ -13,7 +13,7 @@ The system operates in a loop using distinct roles for LLMs:
 
 ## Key Features
 
-  * **LLM Agnostic Architecture:** Easily switch between different model providers, including OpenAI, Google (Gemini), Anthropic, and local models via Ollama or HuggingFace.
+  * **LLM Agnostic Architecture:** Easily switch between different model providers, including OpenAI, Google (Gemini), Anthropic, and local models via Ollama.
   * **Iterative Refinement:** The system learns over time, using synthesized feedback to improve prompt strategies.
   * **Ensemble Voting and Normalization:** Automated evaluation using an ensemble of Voter LLMs, utilizing normalized scoring (Z-scores) for robust comparison and to mitigate bias from individual voters.
   * **Elitism:** Ensures the best-performing prompt from the previous iteration is carried forward, preventing performance regression.
@@ -61,8 +61,6 @@ The system operates in a loop using distinct roles for LLMs:
     # For Langfuse observability
     uv add langfuse
 
-    # If you plan to use HuggingFace models locally (using the hf/ prefix)
-    uv add torch transformers accelerate bitsandbytes
     ```
 
 ## Configuration
@@ -100,7 +98,7 @@ The keys in the dataset objects will be dynamically inserted into the prompt tem
 
 **Example: `dataset_codegen.json`**
 
-Let's optimize a prompt for generating Python code based on a description and signature.
+Let's optimize a prompt for generating Python code based on a description and signature. This will be used an input as part of a task where the result of the LLM will be judged by an actor model.
 
 ```json
 [
@@ -168,7 +166,6 @@ This file defines the optimization task, the models to use, and the parameters f
 
   * **OpenAI, Google, Anthropic:** Use their standard model names (e.g., `gpt-4o`, `gemini-1.5-flash`, `claude-3-haiku-20240307`).
   * **Ollama:** Prefix the model name with `ollama/` (e.g., `ollama/llama3:8b`). Ensure Ollama is running and the model is pulled.
-  * **HuggingFace:** Prefix the model repository path with `hf/` (e.g., `hf/mistralai/Mistral-7B-Instruct-v0.2`).
 
 ## Usage
 

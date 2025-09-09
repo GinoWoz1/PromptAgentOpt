@@ -3,7 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional, Callable
-import threading 
+import threading
 
 # import client libraries
 try:
@@ -24,20 +24,12 @@ except ImportError:
   genai = None
   genai_types = None
 
-try:
-    import torch
-    from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-except ImportError:
-    torch = None
-    AutoTokenizer = None
-    AutoModelForCausalLM = None
-    BitsAndBytesConfig = None
-    # We will log this if the manager initialization fails.
 
 # Assuming env.py is correctly implemented in the root
 from env import getenv
 
 logger = logging.getLogger(__name__)
+
 
 # -----------------------------------------------------------------------
 # LLM Client Manager (Unified Interface)
@@ -46,7 +38,6 @@ logger = logging.getLogger(__name__)
 class LLMClientManager:
   def __init__(self):
     self._clients = {}
-    self.hf_manager = None
     self._initialize_clients()
 
   def _initialize_clients(self):
@@ -107,8 +98,6 @@ class LLMClientManager:
     if not client:
       if provider == "ollama":
         raise ValueError("Ollama client requested but not initialized. Check connectivity to the Ollama host.")
-      if provider == "huggingface":
-        raise ValueError("Hugging Face manager requested but not initialized. Check dependencies (torch, transformers).")
       raise ValueError(f"Client for provider {provider} not initialized or supported.")
     return client
 
@@ -117,27 +106,16 @@ class LLMClientManager:
     A unified interface to call different LLM models.
     """
     if model_name.startswith("hf/"):
-        if self.hf_manager is None:
-                raise ValueError("Hugging Face models requested but the manager is not initialized.")
-        # Remove the prefix before sending the request to the manager
+        # Delegate to the HF manager (which will return the placeholder error message)
         actual_model_name = model_name.replace("hf/", "", 1)
-        try:
-            return self._call_huggingface(actual_model_name, prompt, system_prompt, response_format, **kwargs)
-        except RuntimeError as e:
-            if "mamba-ssm" in str(e):
-                # Special handling for Mamba models
-                logger.error(f"Model {actual_model_name} requires mamba-ssm package. Install with: pip install mamba-ssm")
-                # Suggest alternative model if available
-                fallback_msg = f"LLM_CALL_ERROR: {e}. Consider using an alternative model such as 'ollama/llama3' if available."
-                return fallback_msg
-            raise
+        return self.hf_manager.generate(actual_model_name, prompt, system_prompt, response_format, **kwargs)
 
     # Routing logic for Ollama.
     if model_name.startswith("ollama/"):
       # Remove the prefix before sending the request to the Ollama server
       actual_model_name = model_name.replace("ollama/", "", 1)
       return self._call_ollama(actual_model_name, prompt, system_prompt, response_format, **kwargs)
-   
+
     if "gpt" in model_name:
       return self._call_openai(model_name, prompt, system_prompt, response_format, **kwargs)
     elif "claude" in model_name:
@@ -145,7 +123,7 @@ class LLMClientManager:
     elif "gemini" in model_name:
       return self._call_gemini(model_name, prompt, system_prompt, response_format, **kwargs)
     else:
-            # Updated error message to include HF prefix
+          # Updated error message to include HF prefix
       raise ValueError(f"Unknown or unsupported model name: {model_name}. Use prefixes 'ollama/' or 'hf/' for local models.")
 
 
@@ -178,14 +156,17 @@ class LLMClientManager:
         messages[-1]['content'] += "\n\nCRITICAL: Respond ONLY in the requested JSON format."
 
     try:
-      # Use temperature from kwargs, default to 0.7
+      # Use temperature from kwargs, default to 0.7 if not specified
       temperature = kwargs.get("temperature", 1)
+      # Use max_tokens from kwargs, default to 4096
+      max_tokens = kwargs.get("max_tokens", 4096)
+
       response = client.chat.completions.create(
         model=model_name,
         messages=messages,
         response_format=response_format_arg,
-        temperature=temperature,
-        max_completion_tokens=kwargs.get("max_tokens", 4096) # Increased default max tokens
+        temperature=1,
+        max_completion_tokens=max_tokens
       )
       return response.choices[0].message.content
     except Exception as e:
@@ -195,7 +176,6 @@ class LLMClientManager:
       raise ConnectionError(f"Failed to connect to the LLM server for model {model_name}: {e}")
 
   def _call_anthropic(self, model_name: str, prompt: str, system_prompt: Optional[str], response_format: str, **kwargs) -> str:
-    # (Anthropic implementation remains the same)
     client = self.get_client("anthropic")
 
     if response_format == "json":
@@ -209,6 +189,7 @@ class LLMClientManager:
       system=system_prompt if system_prompt else None,
       messages=[{"role": "user", "content": prompt}],
       max_tokens=kwargs.get("max_tokens", 4096),
+      # Default Anthropic temperature to 0.0 if not specified
       temperature=kwargs.get("temperature", 0.0)
     )
 
@@ -216,11 +197,11 @@ class LLMClientManager:
       return response.content[0].text.strip()
 
     return ""
- 
+
   def _call_gemini(self, model_name: str, prompt: str, system_prompt: Optional[str], response_format: str, **kwargs) -> str:
     if not genai_types:
       raise RuntimeError("Gemini types module missing for configuration.")
-     
+
     client = self.get_client("google")
 
     # Defensive Prompting for JSON (Optional but recommended)
@@ -233,7 +214,7 @@ class LLMClientManager:
     model = client.GenerativeModel(model_name, system_instruction=system_prompt)
 
     config_kwargs = {
-      # Ensure temperature is passed correctly
+      # Ensure temperature is passed correctly, default to 0.0
       "temperature": kwargs.get("temperature", 0.0),
       "max_output_tokens": kwargs.get("max_tokens",15000)
     }
@@ -269,42 +250,44 @@ class LLMClientManager:
     except Exception as e:
       logger.error(f"Error during Gemini API call: {e}")
       return f"LLM_CALL_ERROR: Gemini API Error - {e}"
-   
+
   def get_embeddings(self, texts: List[str], model="text-embedding-3-small", provider: str = "openai") -> List[List[float]]:
     """
     Get embeddings for a list of texts from the specified provider.
-   
+
     Supports:
     - "openai": OpenAI's embedding models (paid)
     - "local": Local sentence-transformers models (free)
     """
     # Process texts consistently regardless of provider
     texts = [text.replace("\n", " ") for text in texts]
-   
+
     # Use sentence-transformers if provider is "local"
     if provider == "local":
       try:
         from sentence_transformers import SentenceTransformer
-       
+
         # Get or initialize the model (lazy loading)
         if not hasattr(self, '_sentence_transformer'):
           # all-MiniLM-L6-v2 is a good balance of quality and speed
           # all-mpnet-base-v2 is higher quality but slower
           self._sentence_transformer = SentenceTransformer('all-MiniLM-L6-v2')
-         
+
         # Generate embeddings and convert to list format
         embeddings = self._sentence_transformer.encode(texts, convert_to_tensor=False)
         return embeddings.tolist() if hasattr(embeddings, 'tolist') else [e.tolist() for e in embeddings]
       except ImportError:
         logger.warning("sentence-transformers not installed. Falling back to OpenAI embeddings.")
         provider = "openai"
-   
+
     # OpenAI embeddings path (existing implementation)
     if provider != "openai":
       logger.info(f"Defaulting to OpenAI for embeddings to ensure consistency in novelty checks.")
       provider = "openai"
 
     if provider not in self._clients:
+      if provider == "openai":
+           raise ValueError("OpenAI client required for embeddings but not initialized. Please check OPENAI_API_KEY.")
       raise ValueError(f"Provider {provider} not initialized for embeddings.")
 
     client = self.get_client(provider)
