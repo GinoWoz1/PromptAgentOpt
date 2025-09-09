@@ -1,0 +1,252 @@
+[
+    {
+        "id": "ex4_is_palindrome",
+        "description": "A function that checks if a string is a palindrome, ignoring case and non-alphanumeric characters.",
+        "signature": "def is_palindrome(text: str) -> bool:"
+    },
+    {
+        "id": "ex5_count_vowels",
+        "description": "A function that counts the number of vowels (a, e, i, o, u) in a given string.",
+        "signature": "def count_vowels(text: str) -> int:"
+    },
+    {
+        "id": "ex6_to_snake_case",
+        "description": "A function that converts a CamelCase string to snake_case.",
+        "signature": "def to_snake_case(camel_str: str) -> str:"
+    },
+    {
+        "id": "ex7_anagram_check",
+        "description": "A function that checks if two strings are anagrams of each other.",
+        "signature": "def are_anagrams(s1: str, s2: str) -> bool:"
+    },
+    {
+        "id": "ex8_run_length_encode",
+        "description": "A function that performs basic run-length encoding on a string (e.g., 'AAABCC' becomes '3A1B2C').",
+        "signature": "def run_length_encode(data: str) -> str:"
+    },
+    {
+        "id": "ex9_find_max_element",
+        "description": "A function that finds the maximum element in a list of numbers without using the built-in max() function.",
+        "signature": "def find_max_element(numbers: list[float]) -> float:"
+    },
+    {
+        "id": "ex10_remove_duplicates",
+        "description": "A function that removes duplicate elements from a list while preserving the original order.",
+        "signature": "def remove_duplicates(items: list) -> list:"
+    },
+    {
+        "id": "ex11_rotate_list",
+        "description": "A function that rotates a list to the right by k steps.",
+        "signature": "def rotate_list(nums: list[int], k: int) -> list[int]:"
+    },
+    {
+        "id": "ex12_chunk_list",
+        "description": "A function that splits a list into smaller lists of a specified size.",
+        "signature": "def chunk_list(data: list, size: int) -> list[list]:"
+    },
+    {
+        "id": "ex13_flatten_list",
+        "description": "A function that flattens a nested list of integers (e.g., [1, [2, 3], 4] becomes [1, 2, 3, 4]).",
+        "signature": "def flatten_list(nested_list: list) -> list[int]:"
+    },
+    {
+        "id": "ex14_intersection_of_lists",
+        "description": "A function that finds the intersection of two lists (common elements).",
+        "signature": "def intersection_of_lists(list1: list, list2: list) -> list:"
+    },
+    {
+        "id": "ex15_word_frequency",
+        "description": "A function that counts the frequency of each word in a sentence and returns a dictionary.",
+        "signature": "def word_frequency(sentence: str) -> dict[str, int]:"
+    },
+    {
+        "id": "ex16_merge_dicts",
+        "description": "A function that merges two dictionaries. If keys overlap, the value from the second dictionary should be used.",
+        "signature": "def merge_dicts(d1: dict, d2: dict) -> dict:"
+    },
+    {
+        "id": "ex17_invert_dict",
+        "description": "A function that inverts a dictionary, swapping keys and values. Assume values are unique and hashable.",
+        "signature": "def invert_dict(data: dict) -> dict:"
+    },
+    {
+        "id": "ex18_find_key_by_value",
+        "description": "A function that finds the first key corresponding to a given value in a dictionary.",
+        "signature": "def find_key_by_value(data: dict, value) -> any:"
+    },
+    {
+        "id": "ex19_two_sum",
+        "description": "Given a list of integers and a target integer, return the indices of the two numbers such that they add up to the target. Use a hashmap for efficiency.",
+        "signature": "def two_sum(nums: list[int], target: int) -> list[int]:"
+    },
+    {
+        "id": "ex20_binary_search",
+        "description": "A function that implements the binary search algorithm to find the index of an element in a sorted list.",
+        "signature": "def binary_search(arr: list[int], target: int) -> int:"
+    },
+    {
+        "id": "ex21_bubble_sort",
+        "description": "A function that implements the bubble sort algorithm to sort a list of integers in ascending order.",
+        "signature": "def bubble_sort(arr: list[int]) -> list[int]:"
+    },
+    {
+        "id": "ex22_linear_search",
+        "description": "A function that performs a linear search to find if an element exists in a list.",
+        "signature": "def linear_search(arr: list, target) -> bool:"
+    },
+    {
+        "id": "ex23_depth_first_search_recursive",
+        "description": "Implement a recursive Depth First Search (DFS) traversal for a graph represented as an adjacency list.",
+        "signature": "def dfs_recursive(graph: dict[int, list[int]], start_node: int, visited: set[int]) -> list[int]:"
+    },
+    {
+        "id": "ex24_selection_sort",
+        "description": "A function that implements the selection sort algorithm.",
+        "signature": "def selection_sort(arr: list[int]) -> list[int]:"
+    },
+    {
+        "id": "ex25_is_prime",
+        "description": "A function that checks if a given integer is a prime number.",
+        "signature": "def is_prime(n: int) -> bool:"
+    },
+    {
+        "id": "ex26_gcd",
+        "description": "A function that calculates the Greatest Common Divisor (GCD) of two integers using the Euclidean algorithm.",
+        "signature": "def gcd(a: int, b: int) -> int:"
+    },
+    {
+        "id": "ex27_lcm",
+        "description": "A function that calculates the Least Common Multiple (LCM) of two integers.",
+        "signature": "def lcm(a: int, b: int) -> int:"
+    },
+    {
+        "id": "ex28_power_of_two",
+        "description": "A function that checks if a number is a power of two using bitwise operations.",
+        "signature": "def is_power_of_two(n: int) -> bool:"
+    },
+    {
+        "id": "ex29_sieve_of_eratosthenes",
+        "description": "A function that generates all prime numbers up to a given limit using the Sieve of Eratosthenes.",
+        "signature": "def sieve_of_eratosthenes(limit: int) -> list[int]:"
+    },
+    {
+        "id": "ex30_calculate_mean",
+        "description": "A function to calculate the arithmetic mean of a list of numbers.",
+        "signature": "def calculate_mean(numbers: list[float]) -> float:"
+    },
+    {
+        "id": "ex31_calculate_median",
+        "description": "A function to calculate the median of a list of numbers.",
+        "signature": "def calculate_median(numbers: list[float]) -> float:"
+    },
+    {
+        "id": "ex32_validate_parentheses",
+        "description": "A function that validates if a string containing parentheses '()', '{}', '[]' is balanced, using a stack.",
+        "signature": "def validate_parentheses(s: str) -> bool:"
+    },
+    {
+        "id": "ex33_implement_stack",
+        "description": "Implement a basic Stack class with push, pop, and peek methods using a list.",
+        "signature": "class Stack:"
+    },
+    {
+        "id": "ex34_implement_queue",
+        "description": "Implement a basic Queue class with enqueue and dequeue methods using collections.deque.",
+        "signature": "class Queue:"
+    },
+    {
+        "id": "ex35_traverse_binary_tree_inorder",
+        "description": "A function to perform an inorder traversal of a binary tree (assuming a TreeNode class is defined).",
+        "signature": "def inorder_traversal(root: TreeNode) -> list[int]:"
+    },
+    {
+        "id": "ex36_fizzbuzz",
+        "description": "A function that prints numbers from 1 to n. For multiples of 3, print 'Fizz', for multiples of 5, print 'Buzz', and for multiples of both, print 'FizzBuzz'. Return a list of strings.",
+        "signature": "def fizzbuzz(n: int) -> list[str]:"
+    },
+    {
+        "id": "ex37_pascal_triangle_row",
+        "description": "A function that generates the nth row of Pascal's triangle.",
+        "signature": "def get_pascal_row(n: int) -> list[int]:"
+    },
+    {
+        "id": "ex38_file_read_lines",
+        "description": "A function that reads a file and returns a list of its lines, stripping whitespace.",
+        "signature": "def read_file_lines(filepath: str) -> list[str]:"
+    },
+    {
+        "id": "ex39_celsius_to_fahrenheit",
+        "description": "A function that converts a temperature from Celsius to Fahrenheit.",
+        "signature": "def celsius_to_fahrenheit(celsius: float) -> float:"
+    },
+    {
+        "id": "ex40_generate_permutations",
+        "description": "A function that generates all possible permutations of a list of distinct integers. Use recursion.",
+        "signature": "def generate_permutations(nums: list[int]) -> list[list[int]]:"
+    },
+    {
+        "id": "ex41_matrix_transpose",
+        "description": "A function that transposes a 2D matrix (list of lists).",
+        "signature": "def transpose_matrix(matrix: list[list[int]]) -> list[list[int]]:"
+    },
+    {
+        "id": "ex42_count_islands",
+        "description": "Given a 2D grid map of '1's (land) and '0's (water), count the number of islands. An island is surrounded by water.",
+        "signature": "def count_islands(grid: list[list[str]]) -> int:"
+    },
+    {
+        "id": "ex43_longest_common_prefix",
+        "description": "A function to find the longest common prefix string amongst a list of strings.",
+        "signature": "def longest_common_prefix(strs: list[str]) -> str:"
+    },
+    {
+        "id": "ex44_roman_to_integer",
+        "description": "A function that converts a Roman numeral string to an integer.",
+        "signature": "def roman_to_integer(s: str) -> int:"
+    },
+    {
+        "id": "ex45_integer_to_roman",
+        "description": "A function that converts an integer to a Roman numeral string.",
+        "signature": "def integer_to_roman(num: int) -> str:"
+    },
+    {
+        "id": "ex46_levenshtein_distance",
+        "description": "A function that calculates the Levenshtein distance (edit distance) between two strings.",
+        "signature": "def levenshtein_distance(s1: str, s2: str) -> int:"
+    },
+    {
+        "id": "ex47_find_missing_number",
+        "description": "Given a list containing n distinct numbers taken from 0, 1, 2, ..., n, find the one that is missing from the list.",
+        "signature": "def find_missing_number(nums: list[int]) -> int:"
+    },
+    {
+        "id": "ex48_validate_ip_address",
+        "description": "A function that validates if a given string is a valid IPv4 address.",
+        "signature": "def is_valid_ipv4(ip: str) -> bool:"
+    },
+    {
+        "id": "ex49_parse_csv_string",
+        "description": "A function that parses a simple CSV string (comma-separated values) into a list of lists, handling basic comma separation.",
+        "signature": "def parse_csv_string(csv_data: str) -> list[list[str]]:"
+    },
+    {
+        "id": "ex50_debounce_decorator",
+        "description": "Implement a simple debounce decorator that prevents a function from being called again until a certain amount of time has passed.",
+        "signature": "def debounce(wait_time: float):"
+    },
+    {
+        "id": "ex51_memoization_decorator",
+        "description": "Implement a memoization decorator to cache the results of expensive function calls.",
+        "signature": "def memoize(func):"
+    },
+    {
+        "id": "ex52_simple_moving_average",
+        "description": "A function that calculates the Simple Moving Average (SMA) for a list of prices over a specified period.",
+        "signature": "def simple_moving_average(prices: list[float], period: int) -> list[float]:"
+    },
+    {
+        "id": "ex53_binary_to_decimal",
+        "description": "A function that converts a binary string representation to a decimal integer.",
+        "signature": "def binary_to_decimal(binary_str: str) -> int:"
+    }
+]

@@ -183,5 +183,7 @@ cython_debug/
 *.joblib
 *.zip
 
-*.json
 *.jsonl
+optimization_results/
+**/optimization_results/
+**/archive/

@@ -1,0 +1,22 @@
+{
+    "task_name": "Python Code Generation from Spec",
+    "task_description": "You are an expert Python programming assistant. Your task is to generate complete, correct, and efficient Python code based on a provided specification.\n\n**Inputs:**\n1. $description: A detailed explanation of the function's requirements, constraints, logic, and expected behavior (e.g., 'must use recursion', 'must be iterative').\n2. $signature: The exact Python function signature (including type hints) or class definition that the code must adhere to.\n\n**Objective:**\nImplement the Python code described in the $description, adhering strictly to the structure defined in the $signature.\n\n**Constraints and Guidelines:**\n- **Correctness:** The code must accurately implement the logic and satisfy all requirements mentioned in the $description. If a specific approach is requested, it must be used.\n- **Signature Adherence:** The generated code MUST conform exactly to the provided $signature. Do not alter the function name, parameters, or return types.\n- **Completeness:** Provide the full implementation. If the $signature is for a class (e.g., 'class Stack:'), provide the full class implementation with the required methods.\n- **Code Quality:** The code should be clean, efficient, readable, and follow standard Pythonic practices.\n- **Dependencies:** Use only the Python Standard Library (e.g., `math`, `collections`). Include necessary imports. Do not use external libraries unless the $description explicitly requires them.\n\n**Expected Output:**\nONLY the Python code implementation. Do not include any preamble, explanations, examples, or markdown formatting (like ```python).",
+    "optimization_parameters": {
+        "max_iterations": 10,
+        "N_CANDIDATES": 5,
+        "MINI_BATCH_SIZE": 10
+    },
+    "model_configuration": {
+        "optimizer_model": "gemini-2.5-flash",
+        "actor_model": "ollama/gpt-oss:20b",
+        "voter_ensemble": [
+            "gemini-2.5-flash",
+            "gpt-5-mini"
+        ]
+    },
+    "early_stopping": {
+        "min_iterations": 3,
+        "patience": 3,
+        "threshold_percentage": 2.0
+    }
+}
